@@ -8,6 +8,7 @@ import (
 //    "path/filepath"
     "fmt"
     "github.com/jleben/trigger-resource/protocol"
+    "github.com/nlopes/slack"
 )
 
 
@@ -29,6 +30,18 @@ func main() {
 	if err != nil {
 		fatal("Parsing request.", err)
 	}
+
+	if len(request.Source.Token) == 0 {
+        fatal1("Missing source field: token.")
+    }
+
+    if len(request.Source.ChannelId) == 0 {
+        fatal1("Missing source field: channel_id.")
+    }
+
+    if len(request.Source.Command) == 0 {
+        fatal1("Missing source field: command.")
+    }
 
 	if _,ok := request.Version["request"]; !ok {
         fatal1("Missing version field: request")
@@ -55,6 +68,10 @@ func main() {
     if err != nil {
         fatal("encoding response", err)
     }
+
+    slack_client := slack.New(request.Source.Token)
+
+    reply(request, slack_client)
 }
 
 func input_target(request protocol.TargetInRequest, destination string) (protocol.TargetInResponse) {
@@ -109,6 +126,27 @@ func input_target(request protocol.TargetInRequest, destination string) (protoco
     return response
 }
 
+func reply(request protocol.InRequest, slack_client *slack.Client) {
+
+    params := slack.NewPostMessageParameters()
+    params.ThreadTimestamp = request.Version["request"]
+
+    var target_version string
+    {
+        v := request.Version
+        delete(v, "request")
+        for key, value := range v {
+            target_version += " " + key + ":" + value
+        }
+    }
+
+    text := fmt.Sprintf("@%s %s in progress.", request.Source.Command, target_version)
+
+    _, _, err := slack_client.PostMessage(request.Source.ChannelId, text, params)
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "Warning: Failed to reply to Slack request: %s\n", err.Error())
+    }
+}
 
 func fatal(doing string, err error) {
 	println("error " + doing + ": " + err.Error())
