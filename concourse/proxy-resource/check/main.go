@@ -52,7 +52,7 @@ func main() {
     }
 
     params.Inclusive = true
-    params.Count = 20
+    params.Count = 100
 
     var history *slack.History
     history, err = slack_client.GetChannelHistory(channel_id, params)
@@ -66,18 +66,11 @@ func main() {
 
         msg := history.Messages[i]
 
-        text := msg.Msg.Text
-        ts := msg.Msg.Timestamp
-        fmt.Fprintf(os.Stderr, "Message %s: %s \n", ts, text)
+        version := process_message(msg, request)
 
-        target_version := process_message(text, request)
-
-        if len(target_version) == 0 { continue }
-
-        version := target_version
-        version["request"] = ts
-
-        response = append(response, version)
+        if version != nil {
+            response = append(response, version)
+        }
     }
 
     json.NewEncoder(os.Stdout).Encode(&response)
@@ -124,15 +117,17 @@ func get_channel_id(request protocol.CheckRequest, slack_client *slack.Client) s
     return channel_id
 }
 
-func process_message(text string, request protocol.CheckRequest) map[string]string {
+func process_message(message slack.Message, request protocol.CheckRequest) protocol.Version {
 
-    version := make(map[string]string)
+    text := message.Msg.Text
+    ts := message.Msg.Timestamp
+    fmt.Fprintf(os.Stderr, "Message %s: %s \n", ts, text)
 
     prefix := "@" + request.Source.Command
 
     if !strings.HasPrefix(text, prefix) {
         fmt.Fprintf(os.Stderr, "Prefix '%s' not found.\n", prefix)
-        return version
+        return nil
     }
 
     version_text := strings.Trim(text[len(prefix):], " ")
@@ -141,7 +136,7 @@ func process_message(text string, request protocol.CheckRequest) map[string]stri
 
     if len(version_parts) != 2 {
         fmt.Fprintf(os.Stderr, "Invalid version format: '%s'.\n", version_text)
-        return version
+        return nil
     }
 
     key := version_parts[0]
@@ -149,7 +144,10 @@ func process_message(text string, request protocol.CheckRequest) map[string]stri
 
     fmt.Fprintf(os.Stderr, "Parsed command for version: %s: %s\n", key, value)
 
-    version[key] = value
+    version := protocol.Version{
+        key: value,
+        "request": ts,
+    }
 
     return version
 }
