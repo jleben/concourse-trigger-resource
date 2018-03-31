@@ -10,6 +10,9 @@ import (
     "github.com/jleben/trigger-resource/protocol"
 )
 
+
+// FIMXE: Pass params to target resource
+
 func main() {
 	if len(os.Args) < 2 {
 		println("usage: " + os.Args[0] + " <destination>")
@@ -27,25 +30,26 @@ func main() {
 		fatal("Parsing request.", err)
 	}
 
-	println("Request parsed.")
+	if _,ok := request.Version["request"]; !ok {
+        fatal1("Missing version field: request")
+    }
 
-	fmt.Printf("channel: %v\n", request.Source.Channel)
-	fmt.Printf("token: %v\n", request.Source.Token)
-    fmt.Printf("version: %v\n", request.Version.Request)
+    fmt.Printf("request version: %v\n", request.Version["request"])
 
     target_request := protocol.TargetInRequest {
         request.Source.Target,
-        request.Version.Target,
+        request.Version,
     }
 
     target_response := input_target(target_request, destination)
 
     var response protocol.InResponse
 
-    response.Version = protocol.Version{
-        request.Version.Request,
-        target_response.Version,
-    }
+    // FIXME: Is this OK, or should we forward the version
+    // from the target's response?
+    response.Version = request.Version
+
+    response.Metadata = target_response.Metadata
 
     err = json.NewEncoder(os.Stdout).Encode(&response)
     if err != nil {
@@ -117,4 +121,9 @@ func input_target(request protocol.TargetInRequest, destination string) (protoco
 func fatal(doing string, err error) {
 	println("error " + doing + ": " + err.Error())
 	os.Exit(1)
+}
+
+func fatal1(reason string) {
+    fmt.Fprintf(os.Stderr, reason + "\n")
+    os.Exit(1)
 }

@@ -7,10 +7,7 @@ type Source struct {
     Target interface{} `json:"target"`
 }
 
-type Version struct {
-    Request string `json:"request"`
-    Target interface{} `json:"target"`
-}
+type Version map[string]string
 
 type Metadata []MetadataField
 
@@ -36,7 +33,7 @@ type TargetInRequest struct {
 
 type TargetInResponse struct {
     Version interface{} `json:"version"`
-    Metadata interface{} `json:"metadata"`
+    Metadata Metadata `json:"metadata"`
 }
 
 type CheckRequest struct {

@@ -20,6 +20,8 @@ func main() {
 
     var err error
 
+    fmt.Fprintf(os.Stderr, "Hello!\n")
+
 	err = json.NewDecoder(os.Stdin).Decode(&request)
 	if err != nil {
 		fatal("Parsing request.", err)
@@ -44,8 +46,9 @@ func main() {
 
     params := slack.NewHistoryParameters()
 
-    if len(request.Version.Request) != 0 {
-        params.Oldest = request.Version.Request
+    if request_version, ok := request.Version["request"]; ok {
+        params.Oldest = request_version
+        fmt.Fprintf(os.Stderr, "Request version: %s\n", request_version)
     }
 
     params.Inclusive = true
@@ -53,6 +56,9 @@ func main() {
 
     var history *slack.History
     history, err = slack_client.GetChannelHistory(channel_id, params)
+    if err != nil {
+		fatal("getting messages.", err)
+	}
 
     response := protocol.CheckResponse{}
 
@@ -68,9 +74,8 @@ func main() {
 
         if len(target_version) == 0 { continue }
 
-        var version protocol.Version
-        version.Request = ts
-        version.Target = target_version
+        version := target_version
+        version["request"] = ts
 
         response = append(response, version)
     }
@@ -198,7 +203,7 @@ func get_history(request protocol.CheckRequest, channel_id) {
 */
 
 func fatal(doing string, err error) {
-	println("error " + doing + ": " + err.Error())
+    fmt.Fprintf(os.Stderr, "error " + doing + ": " + err.Error() + "\n")
 	os.Exit(1)
 }
 
