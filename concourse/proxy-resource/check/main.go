@@ -8,7 +8,7 @@ import (
     //"os/exec"
     "fmt"
     "errors"
-    "strings"
+    //"strings"
     //"net/http"
     "github.com/jleben/trigger-resource/protocol"
     "github.com/nlopes/slack"
@@ -144,33 +144,19 @@ func process_message(message *slack.Message, request protocol.CheckRequest, slac
     }
     */
 
-    prefix := "@" + request.Source.Command
+    slack_request := protocol.ParseSlackRequest(text, request.Source.Command)
 
-    if !strings.HasPrefix(text, prefix) {
-        fmt.Fprintf(os.Stderr, "Prefix '%s' not found.\n", prefix)
+    if slack_request == nil {
+        fmt.Fprintf(os.Stderr, "Invalid format.\n")
         return nil
     }
 
-    version_text := strings.Trim(text[len(prefix):], " ")
+    fmt.Fprintf(os.Stderr, "Parsed command for version: %s\n", slack_request.Version)
 
-    version_parts := strings.Split(version_text, ":")
+    reply(message, slack_request, request, slack_client)
 
-    if len(version_parts) != 2 {
-        fmt.Fprintf(os.Stderr, "Invalid version format: '%s'.\n", version_text)
-        return nil
-    }
-
-    version_key := version_parts[0]
-    version_value := version_parts[1]
-
-    fmt.Fprintf(os.Stderr, "Parsed command for version: %s: %s\n", version_key, version_value)
-
-    version := protocol.Version{
-        version_key: version_value,
-        "request": ts,
-    }
-
-    reply(message, version_text, request, slack_client)
+    version := slack_request.Version
+    version["request"] = ts
 
     return version
 }
@@ -187,11 +173,13 @@ func message_has_reply(message *slack.Message) bool {
 }
 */
 
-func reply(message *slack.Message, target_version string, request protocol.CheckRequest, slack_client *slack.Client) {
+func reply(message *slack.Message, slack_request *protocol.SlackRequest,
+    request protocol.CheckRequest, slack_client *slack.Client) {
+
     params := slack.NewPostMessageParameters()
     params.ThreadTimestamp = message.Msg.Timestamp
 
-    text := fmt.Sprintf("@%s %s queued.", request.Source.Command, target_version)
+    text := fmt.Sprintf("%s detected.", slack_request)
 
     _, _, err := slack_client.PostMessage(request.Source.ChannelId, text, params)
     if err != nil {
