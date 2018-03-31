@@ -8,7 +8,7 @@ import (
     //"os/exec"
     "fmt"
     "errors"
-    //"strings"
+    "strings"
     //"net/http"
     "github.com/jleben/trigger-resource/protocol"
     "github.com/nlopes/slack"
@@ -137,13 +137,6 @@ func process_message(message *slack.Message, request protocol.CheckRequest, slac
     ts := message.Msg.Timestamp
     fmt.Fprintf(os.Stderr, "Message %s: %s \n", ts, text)
 
-    /*
-    if message_has_reply(message) {
-        fmt.Fprintf(os.Stderr, "Message already processed previously.\n", ts)
-        return nil
-    }
-    */
-
     slack_request := protocol.ParseSlackRequest(text, request.Source.Command)
 
     if slack_request == nil {
@@ -153,6 +146,11 @@ func process_message(message *slack.Message, request protocol.CheckRequest, slac
 
     fmt.Fprintf(os.Stderr, "Parsed command for version: %s\n", slack_request.Version)
 
+    if message_was_detected(message, slack_request, &request, slack_client) {
+        fmt.Fprintf(os.Stderr, "Message already processed previously.\n")
+        return nil
+    }
+
     reply(message, slack_request, request, slack_client)
 
     version := slack_request.Version
@@ -161,17 +159,25 @@ func process_message(message *slack.Message, request protocol.CheckRequest, slac
     return version
 }
 
-/*
-func message_has_reply(message *slack.Message) bool {
+func message_was_detected(message *slack.Message, slack_request *protocol.SlackRequest,
+                       request *protocol.CheckRequest, slack_client *slack.Client) bool {
     if message.Msg.ReplyCount == 0 {
         return false
     }
 
-    for _, reply := range message.Msg.Replies {
-
+    replies, err := slack_client.GetChannelReplies(request.Source.ChannelId, message.Msg.Timestamp)
+    if err != nil {
+        fatal("getting replies", err)
     }
+
+    slack_request_string := slack_request.String()
+    for _, reply := range replies {
+        if strings.HasPrefix(reply.Msg.Text, slack_request_string) { return true }
+    }
+
+    return false
 }
-*/
+
 
 func reply(message *slack.Message, slack_request *protocol.SlackRequest,
     request protocol.CheckRequest, slack_client *slack.Client) {
