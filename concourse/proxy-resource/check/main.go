@@ -55,7 +55,10 @@ func main() {
 
     var response protocol.CheckResponse
 
-    for _, msg := range history.Messages {
+    for i := len(history.Messages)-1; i >= 0; i-- {
+
+        msg := history.Messages[i]
+
         text := msg.Msg.Text
         ts := msg.Msg.Timestamp
         fmt.Fprintf(os.Stderr, "Message %s: %s \n", ts, text)
