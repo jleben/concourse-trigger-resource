@@ -20,8 +20,6 @@ func main() {
 
     var err error
 
-    fmt.Fprintf(os.Stderr, "Hello!\n")
-
 	err = json.NewDecoder(os.Stdin).Decode(&request)
 	if err != nil {
 		fatal("Parsing request.", err)
@@ -31,8 +29,8 @@ func main() {
         fatal1("Missing source field: token.")
     }
 
-    if len(request.Source.Channel) == 0 {
-        fatal1("Missing source field: channel.")
+    if len(request.Source.Channel) == 0 && len(request.Source.ChannelId) == 0 {
+        fatal1("Missing source field: channel or channel_id.")
     }
 
     if len(request.Source.Command) == 0 {
@@ -42,7 +40,9 @@ func main() {
 
     slack_client := slack.New(request.Source.Token)
 
-    channel_id := get_channel_id(request, slack_client)
+    if len(request.Source.ChannelId) == 0 {
+        request.Source.ChannelId = get_channel_id(request, slack_client)
+    }
 
     params := slack.NewHistoryParameters()
 
@@ -55,7 +55,7 @@ func main() {
     params.Count = 100
 
     var history *slack.History
-    history, err = slack_client.GetChannelHistory(channel_id, params)
+    history, err = slack_client.GetChannelHistory(request.Source.ChannelId, params)
     if err != nil {
 		fatal("getting messages.", err)
 	}
@@ -66,7 +66,7 @@ func main() {
 
         msg := history.Messages[i]
 
-        version := process_message(msg, request)
+        version := process_message(&msg, request, slack_client)
 
         if version != nil {
             response = append(response, version)
@@ -117,11 +117,26 @@ func get_channel_id(request protocol.CheckRequest, slack_client *slack.Client) s
     return channel_id
 }
 
-func process_message(message slack.Message, request protocol.CheckRequest) protocol.Version {
+func process_message(message *slack.Message, request protocol.CheckRequest, slack_client *slack.Client) protocol.Version {
+
+    is_reply := len(message.Msg.ThreadTimestamp) > 0 &&
+        message.Msg.ThreadTimestamp != message.Msg.Timestamp
+
+    if is_reply {
+        fmt.Fprintf(os.Stderr, "Message %s is a reply. Skipping.\n", message.Msg.Timestamp)
+        return nil
+    }
 
     text := message.Msg.Text
     ts := message.Msg.Timestamp
     fmt.Fprintf(os.Stderr, "Message %s: %s \n", ts, text)
+
+    /*
+    if message_has_reply(message) {
+        fmt.Fprintf(os.Stderr, "Message already processed previously.\n", ts)
+        return nil
+    }
+    */
 
     prefix := "@" + request.Source.Command
 
@@ -139,18 +154,45 @@ func process_message(message slack.Message, request protocol.CheckRequest) proto
         return nil
     }
 
-    key := version_parts[0]
-    value := version_parts[1]
+    version_key := version_parts[0]
+    version_value := version_parts[1]
 
-    fmt.Fprintf(os.Stderr, "Parsed command for version: %s: %s\n", key, value)
+    fmt.Fprintf(os.Stderr, "Parsed command for version: %s: %s\n", version_key, version_value)
 
     version := protocol.Version{
-        key: value,
+        version_key: version_value,
         "request": ts,
     }
 
+    reply(message, version_text, request, slack_client)
+
     return version
 }
+
+/*
+func message_has_reply(message *slack.Message) bool {
+    if message.Msg.ReplyCount == 0 {
+        return false
+    }
+
+    for _, reply := range message.Msg.Replies {
+
+    }
+}
+*/
+
+func reply(message *slack.Message, target_version string, request protocol.CheckRequest, slack_client *slack.Client) {
+    params := slack.NewPostMessageParameters()
+    params.ThreadTimestamp = message.Msg.Timestamp
+
+    text := fmt.Sprintf("@%s %s queued.", request.Source.Command, target_version)
+
+    _, _, err := slack_client.PostMessage(request.Source.ChannelId, text, params)
+    if err != nil {
+        fatal("replying", err)
+    }
+}
+
 
 /*
 func get_channel_id(request protocol.CheckRequest) {

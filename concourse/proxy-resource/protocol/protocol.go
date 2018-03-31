@@ -2,6 +2,7 @@ package protocol
 
 type Source struct {
     Channel string `json:"channel"`
+    ChannelId string `json:"channel_id"`
     Token string `json:"token"`
     Command string `json:"command"`
     Target interface{} `json:"target"`
