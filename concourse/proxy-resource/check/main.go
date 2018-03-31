@@ -127,6 +127,12 @@ func process_message(message *slack.Message, request protocol.CheckRequest, slac
         return nil
     }
 
+    is_by_bot := message.Msg.SubType == "bot_message" || len(message.Msg.User) == 0
+    if is_by_bot {
+        fmt.Fprintf(os.Stderr, "Message %s is by a bot. Skipping.\n", message.Msg.Timestamp)
+        return nil
+    }
+
     text := message.Msg.Text
     ts := message.Msg.Timestamp
     fmt.Fprintf(os.Stderr, "Message %s: %s \n", ts, text)
