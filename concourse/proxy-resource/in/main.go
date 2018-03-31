@@ -34,7 +34,7 @@ func main() {
         fatal1("Missing version field: request")
     }
 
-    fmt.Printf("request version: %v\n", request.Version["request"])
+    fmt.Fprintf(os.Stderr,"request version: %v\n", request.Version["request"])
 
     target_request := protocol.TargetInRequest {
         request.Source.Target,
@@ -68,7 +68,7 @@ func input_target(request protocol.TargetInRequest, destination string) (protoco
         fatal("Serializing target JSON input.", err)
     }
 
-    fmt.Printf("target request: %v\n", string(target_request_bytes))
+    fmt.Fprintf(os.Stderr, "target request: %v\n", string(target_request_bytes))
 
     prefix := os.Getenv("PROXY_RESOURCE_PREFIX")
     if len(prefix) == 0 {
@@ -104,14 +104,6 @@ func input_target(request protocol.TargetInRequest, destination string) (protoco
     err = cmd.Wait()
     if err != nil {
         fatal("waiting for target", err)
-    }
-
-    {
-        response_bytes, err := json.Marshal(response)
-        if err != nil {
-            fatal("marshaling response", err)
-        }
-        fmt.Printf("target response: %v\n", string(response_bytes))
     }
 
     return response
