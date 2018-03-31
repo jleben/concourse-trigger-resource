@@ -1,4 +1,4 @@
-package main
+package protocol
 
 type Source struct {
     Channel string `json::channel`

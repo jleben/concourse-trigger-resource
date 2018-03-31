@@ -7,6 +7,7 @@ import (
     "os/exec"
 //    "path/filepath"
     "fmt"
+    "github.com/jleben/trigger-resource/protocol"
 )
 
 func main() {
@@ -17,7 +18,7 @@ func main() {
 
     destination := os.Args[1]
 
-    var request InRequest
+    var request protocol.InRequest
 
     var err error
 
@@ -32,16 +33,16 @@ func main() {
 	fmt.Printf("token: %v\n", request.Source.Token)
     fmt.Printf("version: %v\n", request.Version.Request)
 
-    target_request := TargetInRequest {
+    target_request := protocol.TargetInRequest {
         request.Source.Target,
         request.Version.Target,
     }
 
     target_response := input_target(target_request, destination)
 
-    var response InResponse
+    var response protocol.InResponse
 
-    response.Version = Version{
+    response.Version = protocol.Version{
         request.Version.Request,
         target_response.Version,
     }
@@ -52,7 +53,7 @@ func main() {
     }
 }
 
-func input_target(request TargetInRequest, destination string) (TargetInResponse) {
+func input_target(request protocol.TargetInRequest, destination string) (protocol.TargetInResponse) {
 
     var err error
 
@@ -93,7 +94,7 @@ func input_target(request TargetInRequest, destination string) (TargetInResponse
     in_pipe.Write(target_request_bytes)
     in_pipe.Close()
 
-    var response TargetInResponse
+    var response protocol.TargetInResponse
     json.NewDecoder(out_pipe).Decode(&response)
 
     err = cmd.Wait()

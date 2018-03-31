@@ -1,9 +1,11 @@
 ARG TARGET_IMAGE
 
 FROM golang:alpine as builder
-COPY ./in /go/src/github.com/concourse/trigger-resource/in
-RUN ls /go/src/github.com/concourse/trigger-resource
-RUN go build -o /assets/in github.com/concourse/trigger-resource/in
+COPY ./protocol /go/src/github.com/jleben/trigger-resource/protocol/
+COPY ./in /go/src/github.com/jleben/trigger-resource/in/
+COPY ./check /go/src/github.com/jleben/trigger-resource/check/
+RUN go build -o /assets/in github.com/jleben/trigger-resource/in
+#RUN go build -o /assets/in github.com/jleben/trigger-resource/check
 
 FROM $TARGET_IMAGE as resource
 ARG TARGET_IMAGE
