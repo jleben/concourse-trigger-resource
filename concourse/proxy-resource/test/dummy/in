@@ -1,0 +1,5 @@
+#! /bin/bash
+dest=$1
+#echo "Yay!" > $1
+echo "$(</dev/stdin)" > "$dest/request"
+echo "{\"version\": { \"ref\": \"out-ref\" } }"
