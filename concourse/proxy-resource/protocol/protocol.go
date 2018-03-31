@@ -1,15 +1,15 @@
 package protocol
 
 type Source struct {
-    Channel string `json::channel`
-    Token string `json::channel`
-    Command string `json::command`
-    Target interface{} `json::target`
+    Channel string `json:"channel"`
+    Token string `json:"token"`
+    Command string `json:"command"`
+    Target interface{} `json:"target"`
 }
 
 type Version struct {
-    Request string `json::request`
-    Target interface{} `json::target`
+    Request string `json:"request"`
+    Target interface{} `json:"target"`
 }
 
 type Metadata []MetadataField
