@@ -48,12 +48,13 @@ func main() {
         params.Oldest = request.Version.Request
     }
 
+    params.Inclusive = true
     params.Count = 20
 
     var history *slack.History
     history, err = slack_client.GetChannelHistory(channel_id, params)
 
-    var response protocol.CheckResponse
+    response := protocol.CheckResponse{}
 
     for i := len(history.Messages)-1; i >= 0; i-- {
 
