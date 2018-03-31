@@ -3,6 +3,7 @@ package protocol
 type Source struct {
     Channel string `json::channel`
     Token string `json::channel`
+    Command string `json::command`
     Target interface{} `json::target`
 }
 
