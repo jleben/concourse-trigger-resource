@@ -44,9 +44,7 @@ func main() {
         request.Source.ChannelId = get_channel_id(request, slack_client)
     }
 
-    var params slack.GetConversationHistoryParameters
-
-    params.ChannelID = request.Source.ChannelId
+    params := slack.NewHistoryParameters()
 
     if request_version, ok := request.Version["request"]; ok {
         params.Oldest = request_version
@@ -54,10 +52,10 @@ func main() {
     }
 
     params.Inclusive = true
-    params.Limit = 100
+    params.Count = 100
 
-    var history *slack.GetConversationHistoryResponse
-    history, err = slack_client.GetConversationHistory(&params)
+    var history *slack.History
+    history, err = slack_client.GetChannelHistory(request.Source.ChannelId, params)
     if err != nil {
 		fatal("getting messages.", err)
 	}
@@ -184,8 +182,10 @@ func message_was_detected(message *slack.Message, slack_request *protocol.SlackR
     }
 
     slack_request_string := slack_request.String()
+
     for _, reply := range replies {
-        was_detected := reply.Msg.SubType == "bot_message" && strings.HasPrefix(reply.Msg.Text, slack_request_string)
+        was_detected := reply.User == request.Source.BotId &&
+            strings.HasPrefix(reply.Msg.Text, slack_request_string)
         if was_detected { return true }
     }
 
