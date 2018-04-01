@@ -33,8 +33,8 @@ func main() {
         fatal1("Missing source field: channel or channel_id.")
     }
 
-    if len(request.Source.Command) == 0 {
-        fatal1("Missing source field: command.")
+    if len(request.Source.Context) == 0 {
+        fatal1("Missing source field: context.")
     }
 
 
@@ -44,7 +44,9 @@ func main() {
         request.Source.ChannelId = get_channel_id(request, slack_client)
     }
 
-    params := slack.NewHistoryParameters()
+    var params slack.GetConversationHistoryParameters
+
+    params.ChannelID = request.Source.ChannelId
 
     if request_version, ok := request.Version["request"]; ok {
         params.Oldest = request_version
@@ -52,10 +54,10 @@ func main() {
     }
 
     params.Inclusive = true
-    params.Count = 100
+    params.Limit = 100
 
-    var history *slack.History
-    history, err = slack_client.GetChannelHistory(request.Source.ChannelId, params)
+    var history *slack.GetConversationHistoryResponse
+    history, err = slack_client.GetConversationHistory(&params)
     if err != nil {
 		fatal("getting messages.", err)
 	}
@@ -148,14 +150,14 @@ func process_message(message *slack.Message, request protocol.CheckRequest, slac
     ts := message.Msg.Timestamp
     fmt.Fprintf(os.Stderr, "Message %s: %s \n", ts, text)
 
-    slack_request := protocol.ParseSlackRequest(text, request.Source.Command)
+    slack_request := protocol.ParseSlackRequest(text, &request.Source)
 
     if slack_request == nil {
         fmt.Fprintf(os.Stderr, "Invalid format.\n")
         return nil, false
     }
 
-    fmt.Fprintf(os.Stderr, "Parsed command for version: %s\n", slack_request.Version)
+    fmt.Fprintf(os.Stderr, "Parsed request for version: %s\n", slack_request.Version)
 
     if message_was_detected(message, slack_request, &request, slack_client) {
         fmt.Fprintf(os.Stderr, "Message already processed previously.\n")
@@ -183,7 +185,8 @@ func message_was_detected(message *slack.Message, slack_request *protocol.SlackR
 
     slack_request_string := slack_request.String()
     for _, reply := range replies {
-        if strings.HasPrefix(reply.Msg.Text, slack_request_string) { return true }
+        was_detected := reply.Msg.SubType == "bot_message" && strings.HasPrefix(reply.Msg.Text, slack_request_string)
+        if was_detected { return true }
     }
 
     return false

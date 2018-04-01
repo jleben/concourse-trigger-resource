@@ -39,8 +39,8 @@ func main() {
         fatal1("Missing source field: channel_id.")
     }
 
-    if len(request.Source.Command) == 0 {
-        fatal1("Missing source field: command.")
+    if len(request.Source.Context) == 0 {
+        fatal1("Missing source field: context.")
     }
 
 	if _,ok := request.Version["request"]; !ok {
@@ -132,16 +132,16 @@ func reply(request protocol.InRequest, slack_client *slack.Client) {
     params := slack.NewPostMessageParameters()
     params.ThreadTimestamp = request.Version["request"]
 
-    var target_version string
-    {
-        v := request.Version
-        delete(v, "request")
-        for key, value := range v {
-            target_version += " " + key + ":" + value
-        }
+    var slack_request protocol.SlackRequest
+    slack_request.Context = request.Source.Context
+    slack_request.Version = protocol.Version{}
+
+    for key, value := range request.Version {
+        if key == "request" { continue }
+        slack_request.Version[key] = value
     }
 
-    text := fmt.Sprintf("@%s %s in progress.", request.Source.Command, target_version)
+    text := fmt.Sprintf("%s in progress.", &slack_request)
 
     _, _, err := slack_client.PostMessage(request.Source.ChannelId, text, params)
     if err != nil {

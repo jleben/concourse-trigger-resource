@@ -7,8 +7,9 @@ import (
 type Source struct {
     Channel string `json:"channel"`
     ChannelId string `json:"channel_id"`
+    BotId string `json:"bot_id"`
     Token string `json:"token"`
-    Command string `json:"command"`
+    Context string `json:"context"`
     Target interface{} `json:"target"`
 }
 
@@ -55,17 +56,23 @@ type SlackRequest struct {
     Version Version
 }
 
-func ParseSlackRequest(text string, context string) *SlackRequest {
-    if !strings.HasPrefix(text, "@" + context) { return nil }
-    words := strings.Split(text, " ")
+func ParseSlackRequest(text string, source *Source) *SlackRequest {
 
-    if len(words) < 2 { return nil }
+    text = strings.Trim(text, " ")
+
+    bot_mention := "<@" + source.BotId + ">"
+    if !strings.HasPrefix(text, bot_mention) { return nil }
+
+    words := strings.Split(text, " ")
+    if len(words) < 3 { return nil }
+
+    if words[1] != source.Context { return nil }
 
     request := new(SlackRequest)
-    request.Context = context
+    request.Context = source.Context
     request.Version = Version{}
 
-    versions := words[1:]
+    versions := words[2:]
 
     for _, version := range versions {
         parts := strings.Split(version, ":")
@@ -79,7 +86,7 @@ func ParseSlackRequest(text string, context string) *SlackRequest {
 }
 
 func (request *SlackRequest) String() string {
-    text := "@" + request.Context
+    text := request.Context
     for key, value := range request.Version {
         text += " " + key + ":" + value
     }
