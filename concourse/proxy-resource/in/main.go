@@ -52,6 +52,7 @@ func main() {
     target_request := protocol.TargetInRequest {
         request.Source.Target,
         request.Version,
+        request.Params,
     }
 
     target_response := input_target(target_request, destination)

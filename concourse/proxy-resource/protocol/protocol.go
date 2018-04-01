@@ -24,6 +24,7 @@ type MetadataField struct {
 type InRequest struct {
 	Source  Source  `json:"source"`
 	Version Version `json:"version"`
+	Params interface{} `json:"params"`
 }
 
 type InResponse struct {
@@ -34,6 +35,7 @@ type InResponse struct {
 type TargetInRequest struct {
     Source  interface{}  `json:"source"`
 	Version interface{} `json:"version"`
+	Params interface{} `json:"params"`
 }
 
 type TargetInResponse struct {
