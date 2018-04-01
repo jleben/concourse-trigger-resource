@@ -60,17 +60,22 @@ func main() {
 		fatal("getting messages.", err)
 	}
 
-    response := protocol.CheckResponse{}
+    versions := []protocol.Version{}
 
-    for i := len(history.Messages)-1; i >= 0; i-- {
+    for _, msg := range history.Messages {
 
-        msg := history.Messages[i]
+        version, was_detected := process_message(&msg, request, slack_client)
 
-        version := process_message(&msg, request, slack_client)
+        if was_detected { break }
 
         if version != nil {
-            response = append(response, version)
+            versions = append(versions, version)
         }
+    }
+
+    response := protocol.CheckResponse{}
+    for i := len(versions) - 1; i >= 0; i--  {
+        response = append(response, versions[i])
     }
 
     json.NewEncoder(os.Stdout).Encode(&response)
@@ -117,20 +122,26 @@ func get_channel_id(request protocol.CheckRequest, slack_client *slack.Client) s
     return channel_id
 }
 
-func process_message(message *slack.Message, request protocol.CheckRequest, slack_client *slack.Client) protocol.Version {
+// Check if message is a request for us.
+// Check if the request was already handled, ignore it if so.
+// Extract requested version
+// Return extracted version (if any), and a flag whether the request was already handled.
+
+func process_message(message *slack.Message, request protocol.CheckRequest, slack_client *slack.Client) (protocol.Version, bool) {
 
     is_reply := len(message.Msg.ThreadTimestamp) > 0 &&
         message.Msg.ThreadTimestamp != message.Msg.Timestamp
 
     if is_reply {
         fmt.Fprintf(os.Stderr, "Message %s is a reply. Skipping.\n", message.Msg.Timestamp)
-        return nil
+        return nil, false
     }
 
     is_by_bot := message.Msg.SubType == "bot_message" || len(message.Msg.User) == 0
+
     if is_by_bot {
         fmt.Fprintf(os.Stderr, "Message %s is by a bot. Skipping.\n", message.Msg.Timestamp)
-        return nil
+        return nil, false
     }
 
     text := message.Msg.Text
@@ -141,14 +152,14 @@ func process_message(message *slack.Message, request protocol.CheckRequest, slac
 
     if slack_request == nil {
         fmt.Fprintf(os.Stderr, "Invalid format.\n")
-        return nil
+        return nil, false
     }
 
     fmt.Fprintf(os.Stderr, "Parsed command for version: %s\n", slack_request.Version)
 
     if message_was_detected(message, slack_request, &request, slack_client) {
         fmt.Fprintf(os.Stderr, "Message already processed previously.\n")
-        return nil
+        return nil, true
     }
 
     reply(message, slack_request, request, slack_client)
@@ -156,7 +167,7 @@ func process_message(message *slack.Message, request protocol.CheckRequest, slac
     version := slack_request.Version
     version["request"] = ts
 
-    return version
+    return version, false
 }
 
 func message_was_detected(message *slack.Message, slack_request *protocol.SlackRequest,
